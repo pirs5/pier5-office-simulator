@@ -74,7 +74,6 @@
   #ss h2{font-family:'Unbounded',sans-serif;font-size:28px;font-weight:900;text-align:center;line-height:1.2;margin-bottom:12px}
   #ss h2 em{color:#ff6b00;font-style:normal}
   #ss p{font-size:12px;color:rgba(255,255,255,.5);letter-spacing:.15em}
-
   .ch{margin-top:28px;border:1px solid rgba(255,180,0,.5);color:#ffd700;padding:12px 32px;font-size:12px;letter-spacing:.2em;text-transform:uppercase;animation:pulse 2s infinite}
   @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,180,0,.3)}50%{box-shadow:0 0 0 10px rgba(255,180,0,0)}}
   #mm{position:fixed;bottom:20px;right:20px;width:120px;height:90px;background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.15);border-radius:2px;z-index:20;overflow:hidden}
@@ -459,7 +458,7 @@ function openChat(ch){
   document.getElementById('cn').textContent=ch.name;
   document.getElementById('ct').textContent=ch.title;
   renderHist(ch);
-  if(!ST.histories[ch.id].length)callGemini(ch,null,true);
+  if(!ST.histories[ch.id].length)callAI(ch,null,true);
   document.getElementById('chat').classList.add('on');
   setTimeout(()=>document.getElementById('cinput').focus(),300);
 }
@@ -480,29 +479,17 @@ function addMsg(type,text,ch,scroll=true){
 function showTyp(ch){const m=document.getElementById('msgs');const d=document.createElement('div');d.className='msg n';d.id='typ';const av=document.createElement('div');av.className='mav';av.style.background=ch.hex+'44';av.textContent=ch.em;const b=document.createElement('div');b.className='mb td';b.innerHTML='<div class="tdot"></div><div class="tdot"></div><div class="tdot"></div>';d.appendChild(av);d.appendChild(b);m.appendChild(d);m.scrollTop=m.scrollHeight;}
 function rmTyp(){const t=document.getElementById('typ');if(t)t.remove();}
 
-const OR_KEY='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';
-const OR_MODEL='meta-llama/llama-3.3-8b-instruct:free';
-async function callGemini(ch,userMsg,greet=false){
-  if(ST.typing)return;ST.typing=true;
-  document.getElementById('csend').disabled=true;document.getElementById('cinput').disabled=true;
-  const GREET="Hello! I'm walking around your office. Introduce yourself in your unique funny way!";
-  if(!greet&&userMsg){ST.histories[ch.id].push({role:'user',content:userMsg});addMsg('u',userMsg,ch);}
-  showTyp(ch);
-  const msgs=greet?[{role:'user',content:GREET}]:[...ST.histories[ch.id]];
-  try{
-    const res=await fetch('https://openrouter.ai/api/v1/chat/completions',{method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':'Bearer '+OR_KEY,'HTTP-Referer':'https://pier5.ru','X-Title':'PIER 5 Office Simulator'},
-      body:JSON.stringify({model:OR_MODEL,max_tokens:300,temperature:0.9,messages:[{role:'system',content:ch.sys},...msgs.map(m=>({role:m.role==='assistant'?'assistant':'user',content:m.content}))]})
-    });
-    const data=await res.json();
-    const reply=data.choices?.[0]?.message?.content||data.error?.message||'Response lost in the rebrand.';
-    rmTyp();
-    if(greet)ST.histories[ch.id].push({role:'user',content:GREET});
-    ST.histories[ch.id].push({role:'assistant',content:reply});addMsg('n',reply,ch);
-  }catch(e){rmTyp();const fb={nicholas:'¡Caramba! WiFi died. Even servers need creative direction.',oleg:'Connection error. Survived losing WPP. I survive this.',igor:'From a strategic standpoint, this timeout is an interesting data point.'};addMsg('n',fb[ch.id]||'Something went wrong. Very off-brand.',ch);}
-  ST.typing=false;document.getElementById('csend').disabled=false;document.getElementById('cinput').disabled=false;document.getElementById('cinput').focus();
+function callAI(ch,userMsg,greet=false){
+  if(greet){
+    const intros={
+      nicholas:"¡Hola! I'm Nicholas Zeuss, Creative Director here at Pier 5. Venezuelan-German, based in Moscow since 2004. I've led creative work for Sber, Aeroflot, Tele2, Severstal and many more. I live for brand identity — and sourdough bread. My office is full of A3 reference prints and half-finished fermentation experiments. ¡Bienvenido to our creative sanctuary under the rooftop!",
+      oleg:"Good to meet you. Oleg Kuzmin, CEO of Pier 5. Nearly 30 years in this industry — Young & Rubicam, Mars Russia, Landor & Fitch Moscow. We spun off independently in May 2022 when Russia separated from the WPP network. Clients include Sber, RUSAL, Rosneft, Aurus — yes, the presidential car. Dry slopes, sharp briefs. That's how I like it.",
+      igor:"Igor Blagodarsky, Strategy Director. 20 years experience, with Pier 5 since 2016. Before that — Interbrand Moscow, Svyaznoy. I've built brand strategy for Sber, Azerbaijan Tourism, Saudi Aramco, UAC aircraft, and more. From a strategic standpoint: I also run triathlons, solve olympiad math problems for fun, and play chess seriously. Welcome to the office."
+    };
+    setTimeout(()=>addMsg('n',intros[ch.id]||'Hello! Welcome to Pier 5.',ch),600);
+  }
 }
-function sendMsg(){if(!ST.activeChar||ST.typing)return;const i=document.getElementById('cinput');const t=i.value.trim();if(!t)return;i.value='';callGemini(ST.activeChar,t);}
+function sendMsg(){if(!ST.activeChar)return;const i=document.getElementById('cinput');const t=i.value.trim();if(!t)return;i.value='';addMsg('u',t,ST.activeChar);setTimeout(()=>addMsg('n','(AI chat coming soon — stay tuned! 🚀)',ST.activeChar),400);}
 document.getElementById('csend').addEventListener('click',sendMsg);
 document.getElementById('cclose').addEventListener('click',closeChat);
 document.getElementById('cinput').addEventListener('keydown',e=>{if(e.code==='Enter'){e.preventDefault();sendMsg();}e.stopPropagation();});
