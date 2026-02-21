@@ -77,11 +77,37 @@
   .ch{margin-top:28px;border:1px solid rgba(255,180,0,.5);color:#ffd700;padding:12px 32px;font-size:12px;letter-spacing:.2em;text-transform:uppercase;animation:pulse 2s infinite}
   @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,180,0,.3)}50%{box-shadow:0 0 0 10px rgba(255,180,0,0)}}
   #mm{position:fixed;bottom:20px;right:20px;width:120px;height:90px;background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.15);border-radius:2px;z-index:20;overflow:hidden}
+
+  /* ── MOBILE ── */
+  #mjoy{position:fixed;bottom:90px;left:24px;width:110px;height:110px;z-index:30;display:none;touch-action:none}
+  #jbase{position:absolute;inset:0;border-radius:50%;background:rgba(255,255,255,.1);border:2px solid rgba(255,180,0,.4)}
+  #jknob{position:absolute;width:44px;height:44px;border-radius:50%;background:rgba(255,180,0,.7);top:50%;left:50%;transform:translate(-50%,-50%);transition:background .15s}
+  #mbtns{position:fixed;bottom:90px;right:18px;display:none;flex-direction:column;gap:12px;z-index:30}
+  .mbtn{width:58px;height:58px;border-radius:50%;border:2px solid rgba(255,180,0,.5);background:rgba(0,0,0,.7);color:#ffd700;font-size:11px;font-family:'Unbounded',sans-serif;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;text-align:center;line-height:1.2;touch-action:manipulation;-webkit-tap-highlight-color:transparent;user-select:none}
+  .mbtn:active{background:rgba(255,180,0,.25)}
+  #mbtnE{border-color:#ffd700;color:#ffd700}
+  #mbtnD{border-color:#ff6b00;color:#ff6b00}
+  #mbtnQ{border-color:rgba(255,255,255,.4);color:rgba(255,255,255,.6);font-size:9px}
+  #mlook{position:fixed;bottom:0;right:0;width:55%;height:100%;z-index:25;touch-action:none;display:none}
+  @media(max-width:768px),(pointer:coarse){
+    #mjoy{display:block}#mbtns{display:flex}#mlook{display:block}
+    #ctrl{display:none}
+    #mm{width:90px;height:68px}
+    #mc{width:90px;height:68px}
+    #badge h1{font-size:13px}#badge p{font-size:8px}
+  }
 </style>
 </head>
 <body>
 <div id="load"><h1>PIER <span>5</span></h1><p>Office Simulator</p><div class="lb"><div class="lbf" id="lbf"></div></div></div>
 <div id="ss" class="h"><h2>Welcome to<br><em>PIER 5 HQ</em></h2><p>Москва · Покровский бульвар 6/20</p><div class="ch">Click to Enter</div></div>
+<div id="mjoy"><div id="jbase"></div><div id="jknob"></div></div>
+<div id="mbtns">
+  <button class="mbtn" id="mbtnE">TALK</button>
+  <button class="mbtn" id="mbtnD">💃<br>DANCE</button>
+  <button class="mbtn" id="mbtnQ">STOP</button>
+</div>
+<div id="mlook"></div>
 <div id="c"></div><div id="crosshair"></div><div id="sl"></div>
 <div id="ctrl"><div><span>W/A/S/D</span> Move &nbsp;<span>←→</span> Look<br><span>E</span> Talk &nbsp;<span>SPACE</span> Dance / next style<br><span>Q</span> Stop dancing &nbsp;<span>ESC</span> Close chat</div></div>
 <div id="badge"><h1>PIER 5 / ПИРС 5</h1><p>Office Simulator</p></div>
@@ -408,6 +434,77 @@ document.addEventListener('keydown',e=>{
   if(e.code==='KeyQ'&&ST.pdancing){ST.pdancing=false;dhud.classList.remove('on');}
 });
 document.addEventListener('keyup',e=>{ST.keys[e.code]=false;});
+// ── MOBILE CONTROLS ──────────────────────────────────────
+const touch={jx:0,jy:0,lx:0,ly:0,lid:-1,jid:-1,lx0:0,ly0:0};
+
+(function initMobile(){
+  const joy=document.getElementById('mjoy');
+  const knob=document.getElementById('jknob');
+  const look=document.getElementById('mlook');
+  if(!joy||!look)return;
+
+  // Joystick
+  joy.addEventListener('touchstart',e=>{
+    e.preventDefault();
+    const t=e.changedTouches[0];
+    touch.jid=t.identifier;
+    updateJoy(t);
+  },{passive:false});
+  document.addEventListener('touchmove',e=>{
+    for(const t of e.changedTouches){
+      if(t.identifier===touch.jid){e.preventDefault();updateJoy(t);}
+      if(t.identifier===touch.lid){updateLook(t);}
+    }
+  },{passive:false});
+  document.addEventListener('touchend',e=>{
+    for(const t of e.changedTouches){
+      if(t.identifier===touch.jid){touch.jid=-1;touch.jx=0;touch.jy=0;knob.style.transform='translate(-50%,-50%)';}
+      if(t.identifier===touch.lid){touch.lid=-1;}
+    }
+  });
+
+  function updateJoy(t){
+    const r=joy.getBoundingClientRect();
+    const cx=r.left+r.width/2, cy=r.top+r.height/2;
+    let dx=t.clientX-cx, dy=t.clientY-cy;
+    const dist=Math.sqrt(dx*dx+dy*dy);
+    const max=40;
+    if(dist>max){dx=dx/dist*max;dy=dy/dist*max;}
+    touch.jx=dx/max; touch.jy=dy/max;
+    knob.style.transform=`translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+  }
+
+  // Look zone (right side swipe)
+  look.addEventListener('touchstart',e=>{
+    e.preventDefault();
+    const t=e.changedTouches[0];
+    touch.lid=t.identifier;
+    touch.lx0=t.clientX; touch.ly0=t.clientY;
+    touch.lx=t.clientX; touch.ly=t.clientY;
+  },{passive:false});
+
+  function updateLook(t){
+    const dx=t.clientX-touch.lx;
+    touch.lx=t.clientX; touch.ly=t.clientY;
+    pYaw-=dx*0.004;
+  }
+
+  // Action buttons
+  document.getElementById('mbtnE').addEventListener('touchstart',e=>{e.preventDefault();if(!ST.activeChar)checkI();},{passive:false});
+  document.getElementById('mbtnD').addEventListener('touchstart',e=>{
+    e.preventDefault();
+    if(!ST.pdancing){
+      ST.pdancing=true;ST.pdTime=0;
+      dhud.textContent=DL[ST.pdStyle];dhud.classList.add('on');
+      CHARS.forEach(ch=>{const g=NPC[ch.id];const dx=cam.position.x-g.position.x,dz=cam.position.z-g.position.z;
+        if(Math.sqrt(dx*dx+dz*dz)<4.5){const rx={nicholas:['¡Caramba! Look at those moves!','¡Perfecto!'],oleg:['In 30 years... remarkable.','Incredible.'],igor:['Movement efficiency: 9.2/10.','Strategically impressive.']};const r=rx[ch.id];showS(g,r[Math.floor(Math.random()*r.length)]);}
+      });
+    } else {ST.pdStyle=(ST.pdStyle+1)%DN.length;dhud.textContent=DL[ST.pdStyle];}
+  },{passive:false});
+  document.getElementById('mbtnQ').addEventListener('touchstart',e=>{e.preventDefault();ST.pdancing=false;dhud.classList.remove('on');},{passive:false});
+})();
+
+
 
 function moveP(dt){
   if(document.getElementById('chat').classList.contains('on'))return;
@@ -416,10 +513,16 @@ function moveP(dt){
   const fw=new THREE.Vector3(-Math.sin(pYaw),0,-Math.cos(pYaw));
   const rt=new THREE.Vector3(Math.cos(pYaw),0,-Math.sin(pYaw));
   const v=new THREE.Vector3();
+  // Keyboard
   if(ST.keys['KeyW'])v.addScaledVector(fw,SPD*dt);
   if(ST.keys['KeyS'])v.addScaledVector(fw,-SPD*dt);
   if(ST.keys['KeyA'])v.addScaledVector(rt,-SPD*dt);
   if(ST.keys['KeyD'])v.addScaledVector(rt,SPD*dt);
+  // Joystick (mobile)
+  if(Math.abs(touch.jx)>.08||Math.abs(touch.jy)>.08){
+    v.addScaledVector(fw,-touch.jy*SPD*dt);
+    v.addScaledVector(rt, touch.jx*SPD*dt);
+  }
   if(v.lengthSq()>.001&&ST.pdancing){ST.pdancing=false;dhud.classList.remove('on');}
   cam.position.add(v);
   cam.position.x=Math.max(-RW/2+.5,Math.min(RW/2-.5,cam.position.x));
